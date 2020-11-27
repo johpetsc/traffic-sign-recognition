@@ -1,5 +1,4 @@
 import numpy as np
-import readTrafficSigns as rts
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from fastai.data.all import *
@@ -32,17 +31,21 @@ def train():
 
     learn.export('../models/recognition/export.pkl')
 
-def predict(img, learn_inf, boxes):
+def predict(img, learn_inf, boxes, num_detections):
     image = cv.cvtColor(img, cv.COLOR_RGB2BGR)
+    count = 0
     for box in boxes:
         yi, yf, xi, xf = int(box[0]), int(box[2]), int(box[1]), int(box[3])
         sign = img[yi:yf, xi:xf]
         pred, pred_idx, probs = learn_inf.predict(sign)
-        print('Prediction: ', pred, 'Probability: %5.2f' % (probs[pred_idx]*100), '%')
-        cv.rectangle(image, (xi, yi), (xf, yf), (0, 0, 0), 5)
-        cv.rectangle(image, (xi, yi), (xf, yf), (255, 255, 255), 3)
-        cv.putText(image, pred, (xi-40, yi), 4, 1, (0, 0, 0), lineType=cv.LINE_AA, thickness=4)
-        cv.putText(image, pred, (xi-40, yi), 4, 1, (255, 255, 255), lineType=cv.LINE_AA, thickness=2)
+        output = pred + '[' + str(round(float(probs[pred_idx]*100))) + '%]'
+        if count < num_detections or pred == 'yield':
+            print('Prediction: ', pred, 'Probability: %5.2f' % (probs[pred_idx]*100), '%')
+            cv.rectangle(image, (xi, yi), (xf, yf), (0, 0, 0), 5)
+            cv.rectangle(image, (xi, yi), (xf, yf), (255, 255, 255), 3)
+            cv.putText(image, output, (xi-40, yi), 2, 1, (0, 0, 0), lineType=cv.LINE_AA, thickness=2)
+            cv.putText(image, output, (xi-40, yi), 2, 1, (255, 255, 255), lineType=cv.LINE_AA, thickness=1)
+            count += 1
     
     cv.imshow("img", image)
     cv.waitKey(0)
@@ -55,4 +58,4 @@ def getModel():
 if __name__ == '__main__':
     train()
     #learn_inf = getModel()
-    #predict('../data/shapes.jpg', learn_inf)
+    #predict('../dataset/Test/00000.jpg', learn_inf)

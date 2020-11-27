@@ -21,11 +21,13 @@ def detection(image_np, detection_graph, sess):
     return boxes, scores
 
 def filter_detections(detected, boxes, scores, w, h):
+    count = 0
     for box, score in zip(np.squeeze(boxes), np.squeeze(scores)):
         if score*100 > 20: 
             box[0], box[1], box[2], box[3] = box[0]*h, box[1]*w, box[2]*h, box[3]*w
             detected.append(box)
-    return detected
+            count += 1
+    return detected, count
 
 def filter_detections_rotated(detected, boxes, scores, w, h):
     for box, score in zip(np.squeeze(boxes), np.squeeze(scores)):
@@ -59,12 +61,12 @@ def main():
             image_np_r = np.array(image.rotate(180).getdata()).reshape((h, w, 3)).astype(np.uint8)
 
             boxes, scores = detection(image_np, detection_graph, sess)
-            detected = filter_detections(detected, boxes, scores, w, h)
+            detected, num_detections = filter_detections(detected, boxes, scores, w, h)
             
             boxes, scores = detection(image_np_r, detection_graph, sess)
             detected = filter_detections_rotated(detected, boxes, scores, w, h)
                     
-            rec.predict(image_np, learn_inf, detected)
+            rec.predict(image_np, learn_inf, detected, num_detections)
 
 if __name__ == '__main__':
     main()
