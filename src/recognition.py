@@ -14,6 +14,7 @@ def train():
         get_items=get_image_files, 
         splitter=RandomSplitter(valid_pct=0.2, seed=42), #20% of the images for validation
         get_y=parent_label, #Folder name as label
+        item_tfms=Resize(128))
 
     dls = signs.dataloaders('dataset/Training/GTSRB/Final_Training/Images', num_workers=0, bs=16) #Load the Training dataset with batch size of 16 (higher means faster but less accurate)
     dls.valid.show_batch(max_n=15, nrows=3)#Show batch
@@ -57,7 +58,7 @@ def predict(img, learn_inf, boxes, num_detections):
     
     cv.imshow("img", image)#Shows image
     if cv.waitKey(0) & 0xFF == ord('q'):#Press Q to exit
-        exit(0)
+        cv.imwrite('results/images/test/teste.jpg', image)
 
 #Function used to load the already trained model
 def getModel():
