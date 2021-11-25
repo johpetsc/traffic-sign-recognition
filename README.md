@@ -7,12 +7,12 @@ The detection model is trained to recognize more general features, such as the s
 
 ![Example](https://github.com/johpetsc/traffic-sign-recognition/blob/main/results/images/37.jpg?raw=true)
 # Requirements
-If you want to run it locally, it's recommended to have at least 16GB of RAM and a GPU with 6GB of VRAM. If your computer does not meet the requirements, you can adapt the code for a Google Colab notebook.
-- fastai 2.1.7  
+To run it locally, it's recommended to have at least 16GB of RAM and a GPU with 6GB of VRAM. If your computer does not meet the requirements, you can adapt the code for a Google Colab notebook.
+- fastai 
 - Python 3.7.x (or later)  
 - OpenCV 4.4
-- Pytorch 1.7  
-- numpy 1.19
+- Pytorch
+- numpy
 - tensorflow 2.x
 - [Object Detection API for TensorFlow 2](https://github.com/tensorflow/models/blob/master/research/object_detection/g3doc/tf2.md)  
 - [CUDA Toolkit](https://developer.nvidia.com/cuda-downloads)
@@ -34,7 +34,7 @@ Train the detection model:
 ```
 Export the detection model after training:
 ```
-    $ py src/export_model.py --input_type image_tensor --pipeline_config_path .\models\faster_rcnn\pipeline.config --trained_checkpoint_dir .\models\faster_rcnn\ --output_directory .\models\detection
+    $ python src/export_model.py --input_type image_tensor --pipeline_config_path .\models\faster_rcnn\pipeline.config --trained_checkpoint_dir .\models\faster_rcnn\ --output_directory .\models\detection
 ```
 Detect and recognize traffic signs on test images:
 ```
