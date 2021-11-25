@@ -1,10 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from sklearn.model_selection import train_test_split
 from fastai.data.all import *
 from fastai.vision.all import *
 from fastai.callback.all import *
-import torch
 import cv2 as cv
 
 #Function fo training
@@ -48,7 +46,7 @@ def predict(img, learn_inf, boxes, num_detections):
         sign = img[yi:yf, xi:xf]#bounding box content to variable
         pred, pred_idx, probs = learn_inf.predict(sign)#prediction
         output = pred + '[' + str(round(float(probs[pred_idx]*100))) + '%]'#Prediction label and probability from tensor to rounded float to string
-        if num_detections > 0 or pred == 'yield':#Gets the yield sign from the rotated image detection
+        if num_detections > 0 and probs[pred_idx]*100 > 60:#Gets the yield sign from the rotated image detection
             print('Prediction: ', output)
             cv.rectangle(image, (xi, yi), (xf, yf), (0, 0, 0), 5)#Draws the bounding box, white rectangle with black borders
             cv.rectangle(image, (xi, yi), (xf, yf), (255, 255, 255), 3)

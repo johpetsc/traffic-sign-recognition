@@ -1,0 +1,29 @@
+item {
+    id: 1
+    name: 'red_circle'
+}
+
+item {
+    id: 2
+    name: 'blue_circle'
+}
+
+item {
+    id: 3
+    name: 'triangle'
+}
+
+item {
+    id: 4
+    name: 'ud_triangle'
+}
+
+item {
+    id: 5
+    name: 'octagon'
+}
+
+item {
+    id: 6
+    name: 'square'
+}

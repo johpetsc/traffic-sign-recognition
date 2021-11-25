@@ -1,79 +1,82 @@
 import numpy as np
 import tensorflow as tf
+from object_detection.utils import label_map_util
+from object_detection.utils import visualization_utils as viz_utils
 from PIL import Image
 import glob as glob
 import recognition as rec
+import cv2 as cv
 
-PATH_TO_MODEL = 'models/detection/frozen_inference_graph.pb' #Path to the pre-trained model
-PATH_TO_TEST_IMAGES = glob.glob('test_images/*.jpg') #Path to test images
+PATH_TO_MODEL = 'models/detection/saved_model' #Path to the pre-trained model
+PATH_TO_LABELS = 'models/annotations/label_map.pbtxt'
+TEST_IMAGES = glob.glob('test_images/*.jpg') #Path to test images
 
-#Gets an image, detection graph and session, returns a list of detections and scores
-def detection(image_np, detection_graph, sess):
-    image_np_expanded = np.expand_dims(image_np, axis=0)
-    #Gets the detection graph tensors
-    image_tensor = detection_graph.get_tensor_by_name('image_tensor:0')
-    boxes = detection_graph.get_tensor_by_name('detection_boxes:0')
-    scores = detection_graph.get_tensor_by_name('detection_scores:0')
-    classes = detection_graph.get_tensor_by_name('detection_classes:0')
-    num_detections = detection_graph.get_tensor_by_name('num_detections:0')
-    
-    #Executes the detection
-    (boxes, scores, classes, num_detections) = sess.run([boxes, scores, classes, num_detections],
-                                                        feed_dict={image_tensor: image_np_expanded})
+def visualize_detections(image, detections):
+    category_index = label_map_util.create_category_index_from_labelmap(PATH_TO_LABELS,
+                                                                    use_display_name=True)
 
-    return boxes, scores
+    viz_utils.visualize_boxes_and_labels_on_image_array(
+        image,
+        detections['detection_boxes'],
+        detections['detection_classes'],
+        detections['detection_scores'],
+        category_index,
+        use_normalized_coordinates=True,
+        max_boxes_to_draw=200,
+        min_score_thresh=.30,
+        agnostic_mode=False)
 
-#Filters detections with less than 20% probability
-def filter_detections(detected, boxes, scores, w, h):
-    count = 0 #Amount of valid detections
-    for box, score in zip(np.squeeze(boxes), np.squeeze(scores)): #Bounding box and score from each detection
-        if score*100 > 20: #>20%
+    cv.imshow("img", image)#Shows image
+    cv.waitKey(0)
+
+def image_to_numpy(image):
+    image = Image.open(image)
+    w, h = image.size
+    image_np = np.array(image.getdata()).reshape((h, w, 3)).astype(np.uint8) #Image to numpy array
+
+    return image_np, w, h
+
+def numpy_to_tensor(image_np):
+    input_tensor = tf.convert_to_tensor(image_np)
+    input_tensor = input_tensor[tf.newaxis, ...]
+    input_tensor = np.expand_dims(image_np, 0)
+
+    return input_tensor
+
+def detection(model, tensor):
+    detections = model(tensor)
+    num_detections = int(detections.pop('num_detections'))
+    detections = {key: value[0, :num_detections].numpy() for key, value in detections.items()}
+    detections['num_detections'] = num_detections
+    detections['detection_classes'] = detections['detection_classes'].astype(np.int64)
+
+    return detections
+
+def filter_detections(detections, w, h):
+    boxes = 0 # number of valid detections
+    filtered_detections = []
+    for box, score in zip(np.squeeze(detections['detection_boxes']), detections['detection_scores']): #Bounding box and score from each detection
+        if score*100 > 20 or boxes < 7: #>20%
             box[0], box[1], box[2], box[3] = box[0]*h, box[1]*w, box[2]*h, box[3]*w #Normalized bounding boxes coordinates
-            detected.append(box) #Append to list with filtered detections
-            count += 1
-    return detected, count
-
-#Filters detections with less than 20% probability in the rotated image
-def filter_detections_rotated(detected, boxes, scores, w, h):
-    for box, score in zip(np.squeeze(boxes), np.squeeze(scores)): #Bounding box and score from each detection
-        if score*100 > 20: #>20%
-            box[0], box[1], box[2], box[3] = h-(box[2]*h), w-(box[3]*w), h-(box[0]*h), w-(box[1]*w) #Normalized bounding boxes coordinates and transform to the real coordinates
-            detected.append(box) #Append to list with filtered detections
-    return detected
+            filtered_detections.append(box) #Append to list with filtered detections
+            boxes += 1
+        else:
+            break
+    
+    return filtered_detections, boxes
 
 def main():
-    detection_graph = tf.Graph()
-    learn_inf = rec.getModel() #Loads the recognition model
+    recognition_model = rec.getModel()
+    detection_model = tf.saved_model.load(PATH_TO_MODEL)
 
-    config = tf.compat.v1.ConfigProto()
-    config.gpu_options.allow_growth = True
+    for image in TEST_IMAGES: #For each image in the test images folder
+        image_np, w, h = image_to_numpy(image)
+        input_tensor = numpy_to_tensor(image_np)
 
-    with detection_graph.as_default(): #Loads the detection model (frozen graph)
-        od_graph_def = tf.compat.v1.GraphDef()
-        fid = tf.io.gfile.GFile(PATH_TO_MODEL, 'rb')
-        serialized_graph = fid.read()
-        od_graph_def.ParseFromString(serialized_graph)
-        tf.import_graph_def(od_graph_def, name='')
-
-        sess = tf.compat.v1.Session(graph=detection_graph, config=config) #Initializes the session
-        for image_path in PATH_TO_TEST_IMAGES: #For each image in the test images folder
-            image = Image.open(image_path)
-            w, h = image.size
-            detected = []
-
-            image_np = np.array(image.getdata()).reshape((h, w, 3)).astype(np.uint8) #Image to numpy array
-            image_np_r = np.array(image.rotate(180).getdata()).reshape((h, w, 3)).astype(np.uint8) #Rotated image to numpy array
-
-            #Detect and filter detections for the normal image
-            boxes, scores = detection(image_np, detection_graph, sess)
-            detected, num_detections = filter_detections(detected, boxes, scores, w, h)
-            
-            #Detect and filter detections for the rotated image
-            boxes, scores = detection(image_np_r, detection_graph, sess)
-            detected = filter_detections_rotated(detected, boxes, scores, w, h)
-
-            #Predicts which traffic sign each detection is      
-            rec.predict(image_np, learn_inf, detected, num_detections)
+        detections = detection(detection_model, input_tensor)
+        filtered_detections, boxes = filter_detections(detections, w, h)
+        rec.predict(image_np, recognition_model, filtered_detections, boxes)
+        # visualize_detections(image_np.copy(), detections)
 
 if __name__ == '__main__':
     main()
